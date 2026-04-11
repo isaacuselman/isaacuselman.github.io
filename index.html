@@ -1,7 +1,77 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Isaac Uselman</title>
+  <meta name="description" content="Isaac Uselman's portfolio — projects and writing.">
+  <link rel="stylesheet" href="style.css">
+</head>
 <body>
-<h1>Hello World</h1>
-<p>I'm hosted with GitHub Pages.</p>
+
+  <header>
+    <h1><a href="/">Isaac Uselman</a></h1>
+    <nav>
+      <a href="#about">About</a>
+      <a href="#projects">Projects</a>
+      <a href="#essays">Essays</a>
+    </nav>
+  </header>
+
+  <main>
+
+    <section id="about">
+      <h2>About</h2>
+      <p>Currently testing Claude Code.</p>
+    </section>
+
+    <hr>
+
+    <section id="projects">
+      <h2>Projects</h2>
+
+      <!-- To add a new project, copy an <article class="project"> block and fill in the title, URL, description, and tags. -->
+
+      <article class="project">
+        <h3><a href="/agentckpt/">agentckpt</a></h3>
+        <p>Checkpoint-recovery middleware for LLM agent pipelines. Provides state snapshots, rollback, idempotent tool wrappers, and branch-and-merge execution.</p>
+        <p class="project-links"><a href="https://github.com/isaacuselman/agentckpt">GitHub</a></p>
+        <ul class="tags">
+          <li>Python</li>
+          <li>Pydantic</li>
+          <li>async</li>
+          <li>SQLite</li>
+        </ul>
+      </article>
+
+      <article class="project">
+        <h3><a href="https://github.com/isaacuselman/study-quiz">Study Quiz</a></h3>
+        <p>Self-study quiz app with 700+ questions and SM-2 spaced repetition for CS50 and CS50P courses. Runs entirely in the browser.</p>
+        <ul class="tags">
+          <li>React</li>
+          <li>Vite</li>
+          <li>JavaScript</li>
+          <li>localStorage</li>
+        </ul>
+      </article>
+
+    </section>
+
+    <hr>
+
+    <section id="essays">
+      <h2>Essays</h2>
+      <p class="placeholder">Coming soon.</p>
+    </section>
+
+  </main>
+
+  <footer>
+    <p>
+      <a href="mailto:your@email.com">Email</a> &middot;
+      <a href="https://github.com/isaacuselman">GitHub</a>
+    </p>
+  </footer>
+
 </body>
 </html>

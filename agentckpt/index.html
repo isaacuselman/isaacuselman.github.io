@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>agentckpt — Checkpoint-Recovery for AI Agents</title>
+  <style>
+/* ── Reset & Base ── */
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --bg: #0d1117;
+  --surface: #161b22;
+  --border: #30363d;
+  --text: #e6edf3;
+  --text-muted: #8b949e;
+  --accent: #58a6ff;
+  --accent-hover: #79c0ff;
+  --green: #3fb950;
+  --purple: #bc8cff;
+  --orange: #f0883e;
+  --radius: 12px;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+.container {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--accent-hover);
+  text-decoration: underline;
+}
+
+/* ── Header ── */
+header {
+  padding: 64px 0 40px;
+  text-align: center;
+  border-bottom: 1px solid var(--border);
+}
+
+header h1 {
+  font-size: 3rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, var(--accent), var(--purple));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.subtitle {
+  font-size: 1.2rem;
+  color: var(--text-muted);
+  margin-top: 8px;
+}
+
+.github-link {
+  display: inline-block;
+  margin-top: 20px;
+  padding: 10px 24px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.github-link:hover {
+  border-color: var(--accent);
+  background: rgba(88, 166, 255, 0.08);
+  text-decoration: none;
+}
+
+/* ── Level Toggle ── */
+.level-toggle {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  padding: 16px 0;
+}
+
+.level-toggle .container {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.toggle-label {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.toggle-group {
+  display: flex;
+  gap: 4px;
+  background: var(--surface);
+  padding: 4px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+}
+
+.toggle-btn {
+  font-family: var(--font);
+  font-size: 0.9rem;
+  font-weight: 500;
+  padding: 8px 20px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.toggle-btn:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.toggle-btn.active {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(88, 166, 255, 0.3);
+}
+
+/* ── Cards ── */
+main {
+  padding: 40px 0 80px;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 32px;
+  margin-bottom: 24px;
+}
+
+.card h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.card h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 20px 0 8px;
+  color: var(--accent);
+}
+
+.card h3:first-child {
+  margin-top: 0;
+}
+
+.card p {
+  margin-bottom: 12px;
+  color: var(--text);
+}
+
+.card ul,
+.card ol {
+  margin: 8px 0 16px 20px;
+  color: var(--text);
+}
+
+.card li {
+  margin-bottom: 6px;
+}
+
+/* ── Level Content Visibility ── */
+.level-content {
+  display: none;
+  animation: fadeIn 0.3s ease;
+}
+
+.level-content.visible {
+  display: block;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Feature Grid ── */
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 20px;
+}
+
+.feature {
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  transition: border-color 0.2s;
+}
+
+.feature:hover {
+  border-color: var(--accent);
+}
+
+.feature h3 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+}
+
+.feature p {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin-bottom: 0;
+}
+
+/* ── Diagrams ── */
+.diagram {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 24px;
+  margin-bottom: 16px;
+  overflow-x: auto;
+}
+
+.diagram pre {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  color: var(--green);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* ── Code Blocks ── */
+pre.code {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px;
+  overflow-x: auto;
+  margin: 12px 0 20px;
+}
+
+pre.code code {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  color: var(--text);
+  line-height: 1.6;
+}
+
+/* ── Footer ── */
+footer {
+  border-top: 1px solid var(--border);
+  padding: 32px 0;
+  text-align: center;
+}
+
+footer p {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+/* ── Responsive ── */
+@media (max-width: 640px) {
+  header {
+    padding: 40px 0 28px;
+  }
+
+  header h1 {
+    font-size: 2.2rem;
+  }
+
+  .level-toggle .container {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .toggle-group {
+    width: 100%;
+  }
+
+  .toggle-btn {
+    flex: 1;
+    text-align: center;
+    padding: 8px 12px;
+    font-size: 0.8rem;
+  }
+
+  .card {
+    padding: 20px;
+  }
+
+  .feature-grid {
+    grid-template-columns: 1fr;
+  }
+}
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="container">
+    <h1>agentckpt</h1>
+    <p class="subtitle">Checkpoint-recovery middleware for AI agent pipelines</p>
+    <a href="https://github.com/isaacuselman/agentckpt" class="github-link">View on GitHub</a>
+  </div>
+</header>
+
+<nav class="level-toggle">
+  <div class="container">
+    <span class="toggle-label">Explanation level:</span>
+    <div class="toggle-group">
+      <button class="toggle-btn active" data-level="engineer">Engineer</button>
+      <button class="toggle-btn" data-level="highschool">High School Senior</button>
+      <button class="toggle-btn" data-level="fifthgrade">Fifth Grader</button>
+    </div>
+  </div>
+</nav>
+
+<main class="container">
+
+  <!-- ============ WHAT IS IT ============ -->
+  <section class="card">
+    <h2>What is agentckpt?</h2>
+
+    <div class="level-content" data-level="engineer">
+      <p>
+        <strong>agentckpt</strong> is a Python middleware library that adds checkpoint-recovery
+        semantics to LLM agent pipelines. It provides content-addressable state snapshots
+        organized in a git-style DAG, enabling rollback, branching, and deterministic replay
+        of multi-step agent execution. Framework-agnostic &mdash; it wraps any async pipeline
+        with composable middleware for checkpointing, retry, idempotent tool execution,
+        and branch-and-merge strategies.
+      </p>
+    </div>
+
+    <div class="level-content" data-level="highschool">
+      <p>
+        <strong>agentckpt</strong> is a Python library that gives AI assistants a "save game" feature.
+        When an AI agent is working through a multi-step task (like researching a topic, writing code,
+        or planning a trip), things can go wrong &mdash; the AI might make a mistake, an API call might
+        fail, or the whole program might crash. Without agentckpt, you'd have to start over from scratch.
+      </p>
+      <p>
+        With agentckpt, the AI's progress is saved at each step. If something breaks, it can
+        roll back to the last good save point and try again. It can even explore multiple
+        approaches at the same time and pick the best one.
+      </p>
+    </div>
+
+    <div class="level-content" data-level="fifthgrade">
+      <p>
+        Imagine you're playing a really hard video game. You get to a tricky part, and you save
+        your game &mdash; just in case. If you mess up, you load your save and try again without
+        starting the whole game over.
+      </p>
+      <p>
+        <strong>agentckpt</strong> does the same thing, but for AI helpers. When a computer's AI
+        assistant is doing a big job with lots of steps, agentckpt saves its progress along the way.
+        If something goes wrong, it can go back to the last save and keep going. No starting over!
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ WHY DOES IT EXIST ============ -->
+  <section class="card">
+    <h2>What problem does it solve?</h2>
+
+    <div class="level-content" data-level="engineer">
+      <p>
+        LLM agent pipelines are stateful, multi-step, and failure-prone. A typical agent
+        loop &mdash; observe, think, act, repeat &mdash; can involve dozens of LLM calls and tool
+        invocations. Any step can fail: rate limits, network timeouts, malformed outputs,
+        tool errors. Without checkpointing:
+      </p>
+      <ul>
+        <li>A failure at step 47 means re-running steps 1&ndash;46 (wasting tokens and time)</li>
+        <li>Non-idempotent tool calls (sending emails, creating records) get duplicated on retry</li>
+        <li>There's no way to inspect or replay the execution history</li>
+        <li>Branching strategies (majority vote, best-of-N) require manual state management</li>
+      </ul>
+      <p>
+        agentckpt solves all of these by treating agent state as a first-class, serializable,
+        version-controlled object.
+      </p>
+    </div>
+
+    <div class="level-content" data-level="highschool">
+      <p>
+        AI agents don't just answer one question &mdash; they work through tasks step by step.
+        An AI might browse the web, call an API, write some code, then check if it worked.
+        That could be 10, 20, or even 50 steps.
+      </p>
+      <p>The problem? Things break all the time:</p>
+      <ul>
+        <li>The internet connection drops mid-task</li>
+        <li>An API the AI is using goes down temporarily</li>
+        <li>The AI makes a mistake and goes down the wrong path</li>
+        <li>The whole program crashes</li>
+      </ul>
+      <p>
+        Without save points, the AI has to start completely over. That wastes time and money
+        (AI API calls cost real money). Worse &mdash; if the AI already sent an email or created
+        a file before the crash, it might send it <em>again</em> when it retries.
+        agentckpt prevents all of this.
+      </p>
+    </div>
+
+    <div class="level-content" data-level="fifthgrade">
+      <p>
+        Think about writing a really long book report. You've been working for an hour, and
+        suddenly your computer shuts off. If you didn't save, you lost everything!
+      </p>
+      <p>
+        AI helpers have the same problem. They work on big jobs step by step, and if something
+        goes wrong in the middle, they lose all their work. Even worse &mdash; imagine the AI
+        was supposed to send one birthday card to your friend, but after the crash it sends
+        it again. Now your friend got two cards! Awkward.
+      </p>
+      <p>
+        agentckpt makes sure the AI saves its work, can go back if something breaks, and
+        never accidentally does the same thing twice.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ KEY FEATURES ============ -->
+  <section class="card">
+    <h2>Key Features</h2>
+
+    <div class="level-content" data-level="engineer">
+      <div class="feature-grid">
+        <div class="feature">
+          <h3>Checkpoint DAG</h3>
+          <p>
+            Content-addressable state snapshots (SHA-256) in a directed acyclic graph.
+            Branch, merge, and traverse history like git. Checkpoints are immutable
+            Pydantic models &mdash; identical states share the same ID automatically.
+          </p>
+        </div>
+        <div class="feature">
+          <h3>Middleware Chain</h3>
+          <p>
+            ASGI-style onion middleware &mdash; compose CheckpointMiddleware, RetryMiddleware,
+            and LoggingMiddleware (or write your own). Each step passes through the full chain.
+          </p>
+        </div>
+        <div class="feature">
+          <h3>Idempotent Tools</h3>
+          <p>
+            Classify tools as PURE (cache forever), SIDE_EFFECT (execute-once with idempotency key),
+            or NON_DETERMINISTIC (TTL-based cache). Includes a record/replay system for
+            deterministic test playback from JSONL.
+          </p>
+        </div>
+        <div class="feature">
+          <h3>Branch &amp; Merge</h3>
+          <p>
+            O(1) copy-on-write state forking. Run parallel branches with majority vote,
+            best-of-N selection, three-way dict merge, or MAKER-style first-to-ahead-by-K voting.
+            Built-in beam search over agent states.
+          </p>
+        </div>
+        <div class="feature">
+          <h3>Pluggable Storage</h3>
+          <p>
+            In-memory (testing), SQLite (local/production), filesystem (content-addressed,
+            human-inspectable). Implement the CheckpointStore protocol for custom backends.
+          </p>
+        </div>
+        <div class="feature">
+          <h3>Test Without API Keys</h3>
+          <p>
+            Ships with MockLLM, test harness, and Hypothesis strategies.
+            202 tests, 90% coverage, fully offline.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="level-content" data-level="highschool">
+      <div class="feature-grid">
+        <div class="feature">
+          <h3>Save Points (Checkpoints)</h3>
+          <p>
+            The AI's state is saved at each step, forming a tree of save points.
+            You can roll back to any previous point, branch off to try different
+            approaches, or inspect exactly what the AI was thinking at any moment.
+          </p>
+        </div>
+        <div class="feature">
+          <h3>Automatic Error Recovery</h3>
+          <p>
+            Middleware automatically handles failures. If a step fails, the state
+            rolls back and can retry with exponential backoff. Everything is logged
+            so you can see what happened.
+          </p>
+        </div>
+        <div class="feature">
+          <h3>Smart Tool Handling</h3>
+          <p>
+            Tools (like web search or sending emails) are wrapped so they don't
+            accidentally run twice. A search can be cached; an email send is
+            guaranteed to only happen once even if the system retries.
+          </p>
+        </div>
+        <div class="feature">
+          <h3>Parallel Exploration</h3>
+          <p>
+            The AI can fork into multiple copies, each trying a different approach.
+            Then the best answer wins &mdash; by voting, scoring, or combining results.
+            Like asking three friends the same question and going with the majority answer.
+          </p>
+        </div>
+        <div class="feature">
+          <h3>Flexible Storage</h3>
+          <p>
+            Save points can be stored in memory (for testing), in a SQLite database
+            (for real use), or as files on disk. You can add your own storage backend too.
+          </p>
+        </div>
+        <div class="feature">
+          <h3>Easy Testing</h3>
+          <p>
+            Comes with fake AI and fake tools built in, so you can test everything
+            without paying for API calls or needing internet access.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="level-content" data-level="fifthgrade">
+      <div class="feature-grid">
+        <div class="feature">
+          <h3>Save Your Progress</h3>
+          <p>
+            Just like saving in a video game. The AI saves after each step
+            so it never loses its work.
+          </p>
+        </div>
+        <div class="feature">
+          <h3>Undo Mistakes</h3>
+          <p>
+            If the AI messes up, it can go back to the last save and try again.
+            Like pressing the undo button.
+          </p>
+        </div>
+        <div class="feature">
+          <h3>No Double-Doing</h3>
+          <p>
+            If the AI already sent a message or looked something up, it remembers
+            and won't do it again by accident.
+          </p>
+        </div>
+        <div class="feature">
+          <h3>Try Multiple Things at Once</h3>
+          <p>
+            The AI can split into copies of itself, each trying a different idea.
+            Then it picks the best answer. Like asking three friends and going
+            with what most of them say.
+          </p>
+        </div>
+        <div class="feature">
+          <h3>Works Anywhere</h3>
+          <p>
+            The save files can be stored in different places &mdash; on your computer,
+            in a database, or as regular files you can look at.
+          </p>
+        </div>
+        <div class="feature">
+          <h3>Practice Mode</h3>
+          <p>
+            Comes with a pretend AI so you can test everything without needing
+            the real thing. Like a practice mode in a game.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ HOW IT WORKS ============ -->
+  <section class="card">
+    <h2>How It Works</h2>
+
+    <div class="level-content" data-level="engineer">
+      <div class="diagram">
+        <pre>
+User Input
+    |
+    v
+[ Pipeline ]
+    |
+    +--[ LoggingMiddleware ]--+
+    |                         |
+    +--[ RetryMiddleware ]----+
+    |                         |
+    +--[ CheckpointMW ]------+
+    |                         |
+    v                         v
+[ Step Function ]      [ Checkpoint DAG ]
+    |                    /      |      \
+    v                  cp1    cp2     cp3
+[ AgentState ]        (main) (main) (branch-a)
+        </pre>
+      </div>
+      <p>
+        The Pipeline drives execution. Each step passes through the middleware chain
+        (onion pattern &mdash; outer middleware wraps inner). CheckpointMiddleware snapshots
+        state before each step and rolls back on failure. The CheckpointDAG stores the
+        full history as a content-addressed graph. State is a Pydantic model; deps (LLM,
+        tools, store) are injected via PipelineContext and not serialized.
+      </p>
+    </div>
+
+    <div class="level-content" data-level="highschool">
+      <div class="diagram">
+        <pre>
+You give the AI a task
+        |
+        v
+   [ Pipeline ] &larr; the manager that runs everything
+        |
+        +-- Logs what's happening
+        +-- Retries if something fails
+        +-- Saves progress automatically
+        |
+        v
+   AI does one step of work
+        |
+        v
+   Progress is saved as a checkpoint
+        |
+        v
+   Repeat until done (or roll back if needed)
+        </pre>
+      </div>
+      <p>
+        Think of the Pipeline as a manager overseeing the AI's work. Before the AI
+        does anything, the manager saves the current state. The AI does its work.
+        If it succeeds, great &mdash; move on. If it fails, the manager loads the save
+        and either retries or lets you decide what to do. Every step is logged,
+        so you have a complete record of what happened and when.
+      </p>
+    </div>
+
+    <div class="level-content" data-level="fifthgrade">
+      <div class="diagram">
+        <pre>
+You ask the AI to do something
+        |
+        v
+  The AI's helper saves the game
+        |
+        v
+  The AI does one step of its job
+        |
+     Did it work?
+    /          \
+  Yes           No
+   |             |
+   v             v
+ Save again   Load last save,
+ Keep going    try again
+        </pre>
+      </div>
+      <p>
+        It's like having a helper standing next to you while you play a game.
+        Before every tricky part, your helper saves the game for you. If you
+        make it through, awesome &mdash; your helper saves again and you keep going.
+        If you fail, your helper loads the save so you can try again.
+        Your helper also writes down everything that happens in a notebook,
+        so you can look back later and see exactly what you did.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ QUICK START ============ -->
+  <section class="card">
+    <h2>Getting Started</h2>
+
+    <div class="level-content" data-level="engineer">
+      <h3>Install</h3>
+      <pre class="code"><code>pip install agentckpt
+# or with SQLite backend
+pip install agentckpt[sqlite]</code></pre>
+
+      <h3>Basic Pipeline</h3>
+      <pre class="code"><code>import asyncio
+from agentckpt import (
+    AgentState, Pipeline, PipelineContext,
+    CheckpointMiddleware, RetryMiddleware,
+    EventLog, Message, Role,
+)
+from agentckpt.storage.memory import InMemoryCheckpointStore
+
+async def main():
+    store = InMemoryCheckpointStore()
+    event_log = EventLog()
+    ctx = PipelineContext(state=AgentState())
+
+    pipeline = Pipeline(
+        ctx,
+        middlewares=[
+            CheckpointMiddleware(store, event_log=event_log),
+            RetryMiddleware(max_retries=2),
+        ],
+        store=store,
+        event_log=event_log,
+    )
+
+    async def step(ctx):
+        msgs = [*ctx.state.messages,
+                Message(role=Role.USER, content="Hello")]
+        ctx.state = ctx.state.model_copy(
+            update={"messages": msgs}
+        )
+        return ctx
+
+    await pipeline.execute_step(step)
+    cp = pipeline.create_checkpoint()
+    print(f"Saved: {cp.id[:12]}...")
+
+asyncio.run(main())</code></pre>
+    </div>
+
+    <div class="level-content" data-level="highschool">
+      <h3>Install it</h3>
+      <pre class="code"><code>pip install agentckpt</code></pre>
+      <p>
+        This downloads the library from Python's package manager so you can use it
+        in your code.
+      </p>
+
+      <h3>Use it</h3>
+      <p>The basic flow is:</p>
+      <ol>
+        <li>Create a <strong>Pipeline</strong> &mdash; this manages the AI's execution</li>
+        <li>Add <strong>middleware</strong> &mdash; plugins that add checkpointing, retries, and logging</li>
+        <li>Define <strong>steps</strong> &mdash; functions that do one unit of work</li>
+        <li>Run it &mdash; the pipeline handles saving, error recovery, and logging automatically</li>
+      </ol>
+      <p>
+        The code is in Python and uses <code>async/await</code> (a way to write code that
+        can wait for slow operations without freezing). If you've taken AP Computer Science
+        or done any Python, the patterns will feel familiar.
+      </p>
+    </div>
+
+    <div class="level-content" data-level="fifthgrade">
+      <p>
+        To use agentckpt, a programmer types a special command to download it to their computer:
+      </p>
+      <pre class="code"><code>pip install agentckpt</code></pre>
+      <p>
+        Then they write code that tells the AI: "Here's your job. Do it step by step.
+        I'll save your progress for you." The cool part is that the programmer doesn't
+        have to write all the saving and loading code themselves &mdash; agentckpt handles
+        it automatically!
+      </p>
+      <p>
+        It's like getting a free helper that does all the boring save-and-load work
+        so the programmer can focus on the fun stuff.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ PROJECT INFO ============ -->
+  <section class="card">
+    <h2>Project Details</h2>
+
+    <div class="level-content" data-level="engineer">
+      <ul>
+        <li><strong>Language:</strong> Python 3.10+</li>
+        <li><strong>Type-safe:</strong> Full type annotations, mypy strict</li>
+        <li><strong>Async-native:</strong> Built on asyncio, works with any async framework</li>
+        <li><strong>Serialization:</strong> Pydantic v2 JSON only (no pickle &mdash; security risk)</li>
+        <li><strong>Tests:</strong> 202 tests, 90% coverage, Hypothesis property tests</li>
+        <li><strong>CI:</strong> GitHub Actions across Python 3.10&ndash;3.13</li>
+        <li><strong>License:</strong> MIT</li>
+      </ul>
+    </div>
+
+    <div class="level-content" data-level="highschool">
+      <ul>
+        <li><strong>Written in:</strong> Python (a popular programming language)</li>
+        <li><strong>Works with:</strong> Python 3.10 and newer</li>
+        <li><strong>Well-tested:</strong> 202 automated tests that run without needing any AI API keys</li>
+        <li><strong>Auto-checked:</strong> Every code change is automatically tested on 4 Python versions</li>
+        <li><strong>Open source:</strong> MIT license &mdash; anyone can use, modify, and share it for free</li>
+      </ul>
+    </div>
+
+    <div class="level-content" data-level="fifthgrade">
+      <ul>
+        <li><strong>Made with:</strong> Python &mdash; one of the most popular coding languages in the world</li>
+        <li><strong>Tested a lot:</strong> Over 200 automatic tests make sure everything works correctly</li>
+        <li><strong>Free to use:</strong> Anyone can use it for free, even for their own projects</li>
+        <li><strong>No AI needed to test:</strong> You can try it out without paying for any AI services</li>
+      </ul>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="container">
+    <p>
+      <a href="https://github.com/isaacuselman/agentckpt">GitHub</a>
+      &middot;
+      MIT License
+      &middot;
+      Built by Isaac Uselman
+    </p>
+  </div>
+</footer>
+
+<script>
+(() => {
+  const buttons = document.querySelectorAll(".toggle-btn");
+  const allContent = document.querySelectorAll(".level-content");
+
+  function setLevel(level) {
+    buttons.forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.level === level);
+    });
+    allContent.forEach((el) => {
+      el.classList.toggle("visible", el.dataset.level === level);
+    });
+    try {
+      localStorage.setItem("agentckpt-level", level);
+    } catch {
+      // ignore
+    }
+  }
+
+  buttons.forEach((btn) => {
+    btn.addEventListener("click", () => setLevel(btn.dataset.level));
+  });
+
+  let saved = null;
+  try {
+    saved = localStorage.getItem("agentckpt-level");
+  } catch {
+    // ignore
+  }
+  setLevel(saved || "engineer");
+})();
+</script>
+</body>
+</html>
